@@ -109,6 +109,22 @@ function App() {
           setFilterStar={(star) => { setFilterStar(star); setVisibleCount(10); }}
         />
 
+        {/* Centered CTA Section */}
+        {!showForm && (
+          <div className="cta-container">
+            <span className="cta-label">Tell us about your experience</span>
+            <div className="btn-rate-us-wrap">
+              <button
+                className="btn-rate-us-hero"
+                onClick={() => setShowForm(true)}
+              >
+                <Star size={20} fill="var(--gold)" color="var(--gold)" />
+                Rate Us Now
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Toolbar */}
         <div className="reviews-toolbar">
           <h2>
@@ -133,11 +149,6 @@ function App() {
                 <option value="lowest">Lowest</option>
               </select>
             </div>
-            {!showForm && (
-              <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-                Rate Us
-              </button>
-            )}
           </div>
         </div>
 
