@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# High SEO Sitemaps for Googlebot, Bingbot & Search Engine Crawlers
+Sitemap: https://coralgenz-reviews.vercel.app/sitemap.xml
