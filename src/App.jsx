@@ -105,7 +105,7 @@ function App() {
       const reviews = [];
       querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        reviews.push({ ...data, id: docSnap.id });
+        reviews.push({ ...data, id: docSnap.id, isUserReview: true });
       });
       setFirebaseReviews(reviews);
     }, (error) => {
@@ -116,11 +116,21 @@ function App() {
 
   const handleAddReview = async (newReview) => {
     try {
+      const nowMs = Date.now();
+      // Target cap strictly below 1000, unique per review (between 150 and 890)
+      const targetHelpful = 150 + Math.floor(Math.random() * 740);
+      // Growth duration between 7 and 14 days
+      const growthDays = 7 + Math.floor(Math.random() * 8);
+
       await addDoc(collection(db, "user_reviews"), {
         ...newReview,
+        isUserReview: true,
+        createdAt: nowMs,
         timestamp: serverTimestamp(),
-        timestampStr: new Date().toISOString(),
+        timestampStr: new Date(nowMs).toISOString(),
         helpful: 0,
+        targetHelpful,
+        growthDays,
       });
       setShowForm(false);
       setFilterStar(null);

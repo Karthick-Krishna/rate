@@ -571,11 +571,69 @@ export function hashString(str) {
   return Math.abs(hash);
 }
 
+export function getReviewTimestampMs(review) {
+  if (!review) return Date.now();
+  if (typeof review.createdAt === 'number' && review.createdAt > 0) return review.createdAt;
+  if (typeof review.timestamp === 'number' && review.timestamp > 0) return review.timestamp;
+  if (review.timestamp && typeof review.timestamp.toDate === 'function') {
+    return review.timestamp.toDate().getTime();
+  }
+  if (review.timestamp && typeof review.timestamp.seconds === 'number') {
+    return review.timestamp.seconds * 1000;
+  }
+  if (review.timestampStr) {
+    const parsed = new Date(review.timestampStr).getTime();
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return Date.now();
+}
+
 export function getDisplayHelpful(review) {
-  if (!review) return 324;
+  if (!review) return 0;
+
+  // Check if this is a user-posted review (from Firestore user_reviews or client submission)
+  const isUserReview = review.isUserReview || typeof review.id === 'string' || review.firestoreDoc;
+
+  if (isUserReview) {
+    const createdAtMs = getReviewTimestampMs(review);
+    const now = Date.now();
+    const elapsedMs = Math.max(0, now - createdAtMs);
+
+    // Target cap strictly below 1000, unique and random per review (between 120 and 890)
+    const idHash = hashString(String(review.id || review.name || 'user_review'));
+    const targetCap = (typeof review.targetHelpful === 'number' && review.targetHelpful > 0 && review.targetHelpful < 1000)
+      ? review.targetHelpful
+      : (120 + (idHash % 770));
+
+    // Growth timeline: takes between 7 and 14 days to gradually reach the target cap
+    const growthDays = (typeof review.growthDays === 'number' && review.growthDays > 0)
+      ? review.growthDays
+      : (7 + ((idHash >> 3) % 8));
+    const totalGrowthMs = growthDays * 24 * 60 * 60 * 1000;
+
+    let organicCount = 0;
+    if (elapsedMs <= 0) {
+      organicCount = 0;
+    } else if (elapsedMs >= totalGrowthMs) {
+      organicCount = targetCap;
+    } else {
+      // Smooth natural progression over days (ease-in-out smoothstep)
+      const ratio = elapsedMs / totalGrowthMs; // 0.0 to 1.0
+      const smoothRatio = ratio * ratio * (3 - 2 * ratio);
+      organicCount = Math.floor(smoothRatio * targetCap);
+    }
+
+    // Include any manual upvotes clicked by platform visitors
+    const manualVotes = (typeof review.helpful === 'number' && review.helpful > 0) ? review.helpful : 0;
+    return organicCount + manualVotes;
+  }
+
+  // Established static historical reviews
   if (typeof review.helpful === 'number' && review.helpful > 0 && review.helpful !== 1069) {
     return review.helpful;
   }
+
+  // Fallback for static reviews
   const idNum = typeof review.id === 'number'
     ? review.id
     : hashString(String(review.id || review.name || 'user_review'));
@@ -588,11 +646,11 @@ export function getDisplayHelpful(review) {
   if (tier < 15) {
     count = 18 + (hash % 132);          // 18 - 149
   } else if (tier < 55) {
-    count = 150 + (hash % 430);         // 150 - 579 (e.g. 324, 456)
+    count = 150 + (hash % 430);         // 150 - 579
   } else if (tier < 85) {
-    count = 580 + (hash % 415);         // 580 - 994 (e.g. 777, 908)
+    count = 580 + (hash % 415);         // 580 - 994
   } else {
-    count = 995 + (hash % 450);         // 995 - 1444 (e.g. 1098)
+    count = 995 + (hash % 450);         // 995 - 1444
   }
 
   if (count === 1069) count = 1098;
